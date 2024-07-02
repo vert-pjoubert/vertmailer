@@ -1,7 +1,6 @@
 package vertmailer
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"strings"
@@ -63,12 +62,6 @@ func startMockSMTPServer(addr string) *smtpserver.Server {
 	s.Domain = "localhost"
 	s.AllowInsecureAuth = true
 
-	// Configure STARTTLS
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{generateSelfSignedCert()},
-	}
-	s.TLSConfig = tlsConfig
-
 	go func() {
 		if err := s.ListenAndServe(); err != nil {
 			fmt.Println("Mock SMTP Server error:", err)
@@ -78,29 +71,6 @@ func startMockSMTPServer(addr string) *smtpserver.Server {
 	// Give the server some time to start
 	time.Sleep(500 * time.Millisecond)
 	return s
-}
-
-func generateSelfSignedCert() tls.Certificate {
-	certPEM := `-----BEGIN CERTIFICATE-----
-MIIBszCCATugAwIBAgIUQTO9/MZ2sQ+5MgDbKGBZ2lhNCmUwCgYIKoZIzj0EAwIw
-EDEOMAwGA1UEAxMFbG9jYWwwIBcNMjIwNDAzMjEyNjEzWhgPMjA1MDAxMjQyMTI2
-MTNaMBAxDjAMBgNVBAMTBWxvY2FsMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
-3xN73mSPsy4iKzQAMTtYXBXKyv4o0wBLxLJ4SEkGHgYP0FYMCdXK5/EbZTzJ5vMS
-ZEnlWFFns3iFx6MSOj+pU6NNMEswDgYDVR0PAQH/BAQDAgeAMB0GA1UdDgQWBBQ9
-W0Mv8+kO+Kz06zw5RR9hAeqtTzAfBgNVHSMEGDAWgBQ9W0Mv8+kO+Kz06zw5RR9h
-AeqtTzAKBggqhkjOPQQDAgNHADBEAiAwTduYYWPluFlitYyrLgT+Q7gdm7F7Z2T7
-+BmvZLz/9QIgIYBL9mVGzt8+G5KczQkD/xk+sb12OTAN/BwTSALlbnE=
------END CERTIFICATE-----
-`
-
-	keyPEM := `-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIEG3N2AIAy3zhlHioftlvh/9rfIgVgfiZ06twSY/kzqZoAoGCCqGSM49
-AwEHoUQDQgAE3xN73mSPsy4iKzQAMTtYXBXKyv4o0wBLxLJ4SEkGHgYP0FYMCdXK
-5/EbZTzJ5vMSZEnlWFFns3iFx6MSOj+pU6A==
------END EC PRIVATE KEY-----
-`
-	cert, _ := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
-	return cert
 }
 
 func TestSendMail(t *testing.T) {
