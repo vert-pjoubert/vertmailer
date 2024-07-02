@@ -23,6 +23,7 @@ type MailServer struct {
 	Username   string
 	Password   string
 	CACertPath string
+	UseTLS     bool
 }
 
 // Mailer interface defines the methods for sending emails.
@@ -61,8 +62,6 @@ func (ms *MailerService) SendMail(mail Mail) error {
 
 	mail = SanitizeMail(mail)
 
-	auth := smtp.PlainAuth("", ms.Server.Username, ms.Server.Password, ms.Server.Host)
-
 	header := map[string]string{
 		"From":    mail.From,
 		"To":      mail.To[0],
@@ -75,32 +74,47 @@ func (ms *MailerService) SendMail(mail Mail) error {
 	}
 	message += "\r\n" + mail.Body
 
-	// Load the CA certificate.
-	caCertPool, err := LoadCACert(ms.Server.CACertPath)
-	if err != nil {
-		return fmt.Errorf("failed to load CA certificate: %w", err)
+	var client *smtp.Client
+	var err error
+
+	if ms.Server.UseTLS {
+		// Load the CA certificate.
+		caCertPool, err := LoadCACert(ms.Server.CACertPath)
+		if err != nil {
+			return fmt.Errorf("failed to load CA certificate: %w", err)
+		}
+
+		// Establish a TLS connection with CA verification.
+		tlsconfig := &tls.Config{
+			RootCAs:    caCertPool,
+			ServerName: ms.Server.Host,
+		}
+
+		conn, err := tls.Dial("tcp", ms.Server.Host+":"+ms.Server.Port, tlsconfig)
+		if err != nil {
+			return fmt.Errorf("failed to establish TLS connection: %w", err)
+		}
+		defer conn.Close()
+
+		client, err = smtp.NewClient(conn, ms.Server.Host)
+		if err != nil {
+			return fmt.Errorf("failed to create SMTP client: %w", err)
+		}
+	} else {
+		client, err = smtp.Dial(ms.Server.Host + ":" + ms.Server.Port)
+		if err != nil {
+			return fmt.Errorf("failed to dial SMTP server: %w", err)
+		}
 	}
 
-	// Establish a TLS connection with CA verification.
-	tlsconfig := &tls.Config{
-		RootCAs:    caCertPool,
-		ServerName: ms.Server.Host,
-	}
-
-	conn, err := tls.Dial("tcp", ms.Server.Host+":"+ms.Server.Port, tlsconfig)
-	if err != nil {
-		return fmt.Errorf("failed to establish TLS connection: %w", err)
-	}
-	defer conn.Close()
-
-	client, err := smtp.NewClient(conn, ms.Server.Host)
-	if err != nil {
-		return fmt.Errorf("failed to create SMTP client: %w", err)
-	}
 	defer client.Close()
 
-	if err = client.Auth(auth); err != nil {
-		return fmt.Errorf("authentication error: %w", err)
+	// Skip authentication if the server is localhost (mock server)
+	if ms.Server.Host != "127.0.0.1" && ms.Server.Host != "localhost" {
+		auth := smtp.PlainAuth("", ms.Server.Username, ms.Server.Password, ms.Server.Host)
+		if err = client.Auth(auth); err != nil {
+			return fmt.Errorf("authentication error: %w", err)
+		}
 	}
 
 	if err = client.Mail(mail.From); err != nil {
