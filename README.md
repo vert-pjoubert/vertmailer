@@ -26,7 +26,7 @@ package main
 
 import (
 	"log"
-	"github.com/yourusername/vertmailer"
+	"github.com/vert-pjoubert/vertmailer"
 )
 
 func main() {
