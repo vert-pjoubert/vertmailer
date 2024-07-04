@@ -14,7 +14,7 @@ VertMailer is a Go package that provides a simple interface for sending emails u
 To install VertMailer, use `go get`:
 
 ```sh
-go get github.com/yourusername/vertmailer
+go get github.com/vert-pjoubert/vertmailer
 ```
 
 ## Usage
